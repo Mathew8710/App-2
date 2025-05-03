@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Virtual Assistant Chat</title>
+    <link rel="manifest" href="manifest.json" />
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Roboto', Arial, sans-serif;
+            overflow: hidden;
+            background-image: url('https://wallpapercave.com/wp/wp4056410.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            /* Removed background-attachment fixed to disable live background */
+            /* background-attachment: fixed; */
+            filter: brightness(0.6);
+        }
+
+        #video-background {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            z-index: -1;
+            object-fit: cover;
+            filter: brightness(0.6);
+        }
+
+        #chat-wrapper {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+        }
+
+        #chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            /* Removed dark overlay */
+            /* background-color: rgba(0, 0, 0, 0.5); */
+            border-radius: 15px;
+            margin: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            clear: both;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        .user-message {
+            background-color: #FF3B3F;
+            color: white;
+            float: right;
+            text-align: right;
+            box-shadow: 0 2px 8px rgba(255, 59, 63, 0.5);
+        }
+
+        .assistant-message {
+            background-color: #e5e5ea;
+            color: black;
+            float: left;
+            text-align: left;
+            box-shadow: 0 2px 8px rgba(229, 229, 234, 0.5);
+        }
+
+        #input-container {
+            display: flex;
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 0 0 15px 15px;
+            margin: 0 20px 20px 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        #input-message {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        #send-button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #FF3B3F;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 59, 63, 0.6);
+            transition: background-color 0.3s ease;
+        }
+
+        #send-button:disabled {
+            background-color: #a0c8ff;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #send-button:hover:not(:disabled) {
+            background-color: #e10600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Removed video background for Spiderman wallpaper -->
+    <!-- Removed video background for Spiderman wallpaper -->
+    <!-- <video autoplay muted loop id="video-background">
+        <source src="https://cdn.videvo.net/videvo_files/video/free/2019-07/small_watermarked/190705_01_Drone_4k_001_preview.webm" type="video/webm">
+        Your browser does not support the video tag.
+    </video> -->
+    <div id="chat-wrapper">
+        <div id="chat-container"></div>
+        <div id="input-container">
+            <input type="text" id="input-message" placeholder="Type your message here..." autocomplete="off" />
+            <button id="send-button" disabled>Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const inputMessage = document.getElementById('input-message');
+        const sendButton = document.getElementById('send-button');
+
+        function appendMessage(text, className) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + className;
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        inputMessage.addEventListener('input', () => {
+            sendButton.disabled = inputMessage.value.trim() === '';
+        });
+
+        sendButton.addEventListener('click', () => {
+            const message = inputMessage.value.trim();
+            if (!message) return;
+            appendMessage(message, 'user-message');
+            inputMessage.value = '';
+            sendButton.disabled = true;
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.response, 'assistant-message');
+            })
+            .catch(() => {
+                appendMessage('Error: Could not reach the server.', 'assistant-message');
+            });
+        });
+
+        // Allow pressing Enter to send message
+        inputMessage.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !sendButton.disabled) {
+                sendButton.click();
+                event.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
